@@ -103,26 +103,56 @@ const getDiagramsByUser = async (id: string) => {
 }
 
 const createInvitacionDiagrama = async (id: string, diagram: Diagram) => {
-    console.log(diagram);
-    await updateDiagramUML(id, diagram);
-    const diagrama = await diagramModel.findById(id);
-    const userIdParticipante = diagram.participantes[0];
-    const userParticipante = await userModel.findById(userIdParticipante);
-    const url =`${process.env.FRONTEND_URL}/private/diagrams/${id}`;
-    const qr = await generateQR({ url });
-    const mailOptions = await transport.sendMail({
-        from: `"${process.env.SMTP_FROM_NAME || 'Sistema de Diagramas'}" <${process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER}>`,
-        to: userParticipante!.email,
-        subject: `Invitacion al la pizarra de trabajo: ${diagrama?.name}`,
-        html: htmlTemplateEvent({
-            _id: diagrama?._id,
-            name: diagrama?.name,
-            qr: qr,
-        }, url),
-        attachments: [{ filename: `QR-${diagrama?.name}`, path: `${qr}` }],
-    });
-    console.log(mailOptions);
-    return mailOptions;
+    try {
+        console.log("=== INICIANDO ENVÍO DE INVITACIÓN ===");
+        console.log("Diagrama recibido:", diagram);
+        
+        await updateDiagramUML(id, diagram);
+        const diagrama = await diagramModel.findById(id);
+        console.log("Diagrama encontrado:", diagrama?.name);
+        
+        const userIdParticipante = diagram.participantes[0];
+        console.log("ID del participante:", userIdParticipante);
+        
+        const userParticipante = await userModel.findById(userIdParticipante);
+        console.log("Participante encontrado:", userParticipante?.email);
+        
+        const url = `${process.env.FRONTEND_URL}/private/diagrams/${id}`;
+        console.log("URL generada:", url);
+        
+        const qr = await generateQR({ url });
+        console.log("QR generado exitosamente");
+        
+        console.log("=== CONFIGURACIÓN SMTP ===");
+        console.log("SMTP_HOST:", process.env.SMTP_HOST);
+        console.log("SMTP_PORT:", process.env.SMTP_PORT);
+        console.log("SMTP_USER:", process.env.SMTP_USER);
+        console.log("SMTP_FROM_EMAIL:", process.env.SMTP_FROM_EMAIL);
+        console.log("Destinatario:", userParticipante!.email);
+        
+        console.log("=== ENVIANDO CORREO ===");
+        const mailOptions = await transport.sendMail({
+            from: `"${process.env.SMTP_FROM_NAME || 'Sistema de Diagramas'}" <${process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER}>`,
+            to: userParticipante!.email,
+            subject: `Invitacion a la pizarra de trabajo: ${diagrama?.name}`,
+            html: htmlTemplateEvent({
+                _id: diagrama?._id,
+                name: diagrama?.name,
+                qr: qr,
+            }, url),
+            attachments: [{ filename: `QR-${diagrama?.name}`, path: `${qr}` }],
+        });
+        
+        console.log("=== CORREO ENVIADO EXITOSAMENTE ===");
+        console.log("Message ID:", mailOptions.messageId);
+        console.log("Response:", mailOptions.response);
+        
+        return mailOptions;
+    } catch (error) {
+        console.error("=== ERROR AL ENVIAR INVITACIÓN ===");
+        console.error("Error completo:", error);
+        throw error;
+    }
 }
 
 
