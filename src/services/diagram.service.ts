@@ -108,7 +108,7 @@ const createInvitacionDiagrama = async (id: string, diagram: Diagram) => {
         console.log("Diagrama recibido:", diagram);
         
         await updateDiagramUML(id, diagram);
-        const diagrama = await diagramModel.findById(id);
+        const diagrama = await diagramModel.findById(id).populate('anfitrion');
         console.log("Diagrama encontrado:", diagrama?.name);
         
         const userIdParticipante = diagram.participantes[0];
@@ -116,6 +116,11 @@ const createInvitacionDiagrama = async (id: string, diagram: Diagram) => {
         
         const userParticipante = await userModel.findById(userIdParticipante);
         console.log("Participante encontrado:", userParticipante?.email);
+        
+        // Obtener información del anfitrión
+        const anfitrion = diagrama?.anfitrion as any;
+        const anfitrionNombre = anfitrion ? `${anfitrion.firstName} ${anfitrion.lastName}` : 'Un colaborador';
+        console.log("Anfitrión:", anfitrionNombre);
         
         const url = `${process.env.FRONTEND_URL}/private/diagrams/${id}`;
         console.log("URL generada:", url);
@@ -132,13 +137,15 @@ const createInvitacionDiagrama = async (id: string, diagram: Diagram) => {
         
         console.log("=== ENVIANDO CORREO ===");
         const mailOptions = await transport.sendMail({
+            // Siempre usar el email verificado en SendGrid
             from: `"${process.env.SMTP_FROM_NAME || 'Sistema de Diagramas'}" <${process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER}>`,
             to: userParticipante!.email,
-            subject: `Invitacion a la pizarra de trabajo: ${diagrama?.name}`,
+            subject: `${anfitrionNombre} te invita a colaborar en: ${diagrama?.name}`,
             html: htmlTemplateEvent({
                 _id: diagrama?._id,
                 name: diagrama?.name,
                 qr: qr,
+                anfitrion: anfitrion, // Pasar información del anfitrión
             }, url),
             attachments: [{ filename: `QR-${diagrama?.name}`, path: `${qr}` }],
         });
